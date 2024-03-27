@@ -3,6 +3,9 @@
 ## Description
 This repository contains code and resources for establishing UART communication between an Altera Cyclone II FPGA board and an Arduino microcontroller. UART (Universal Asynchronous Receiver/Transmitter) communication is a widely used serial communication protocol for exchanging data between digital devices.
 
+## Setup Image
+![Setup Image](images/setup.jpg)
+
 ## Contents
 1. **Arduino Sketch**: Contains the Arduino code for UART communication.
 2. **Quartus II Project**: Includes the Quartus II project files for configuring the Altera Cyclone II FPGA.
