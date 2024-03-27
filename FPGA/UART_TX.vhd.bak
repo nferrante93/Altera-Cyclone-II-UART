@@ -1,0 +1,51 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+entity UART_TX is
+    Port (
+        clk      : in  STD_LOGIC;
+        reset    : in  STD_LOGIC;
+        tx_data  : in  STD_LOGIC_VECTOR(7 downto 0); -- Data to transmit
+        tx_ready : out STD_LOGIC;                   -- Ready signal
+        tx       : out STD_LOGIC                     -- UART TX line
+    );
+end UART_TX;
+
+architecture Behavioral of UART_TX is
+
+    constant BAUD_RATE : integer := 9600;           -- Baud rate (bits per second)
+    constant CLOCK_FREQ : integer := 50000000;      -- Clock frequency (50 MHz)
+
+    signal bit_count : integer range 0 to 10 := 0;  -- Counter for transmitting bits
+    signal data_reg  : STD_LOGIC_VECTOR(9 downto 0);-- Shift register for data
+    signal tx_reg    : STD_LOGIC := '1';            -- Register for UART TX line
+
+begin
+
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            bit_count <= 0;
+            tx_reg <= '1';                         -- Start bit
+        elsif rising_edge(clk) then
+            if bit_count = 0 then
+                tx_ready <= '0';                   -- Indicate transmission in progress
+                tx_reg <= '0';                     -- Start bit
+                data_reg <= '0' & tx_data & '1';   -- Load data into shift register with start and stop bits
+                bit_count <= 1;
+            elsif bit_count < 10 then
+                tx_reg <= data_reg(bit_count);     -- Output data bit
+                bit_count <= bit_count + 1;
+            elsif bit_count = 10 then
+                tx_reg <= '1';                     -- Stop bit
+                bit_count <= 0;
+                tx_ready <= '1';                   -- Indicate transmission complete
+            end if;
+        end if;
+    end process;
+
+    tx <= tx_reg;  -- Assign TX line
+
+end Behavioral;

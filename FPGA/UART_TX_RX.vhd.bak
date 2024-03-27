@@ -1,0 +1,92 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+entity UART_TX_RX is
+    Port (
+        clk         : in  STD_LOGIC;
+        reset       : in  STD_LOGIC;
+        tx_data     : in  STD_LOGIC_VECTOR(7 downto 0); -- Data to transmit
+        tx_ready    : out STD_LOGIC;                   -- Ready signal for TX
+        tx          : out STD_LOGIC;                   -- UART TX line
+        rx          : in  STD_LOGIC;                   -- UART RX line
+        rx_data     : out STD_LOGIC_VECTOR(7 downto 0);-- Received data
+        rx_ready    : out STD_LOGIC                    -- Ready signal for RX
+    );
+end UART_TX_RX;
+
+architecture Behavioral of UART_TX_RX is
+
+    constant BAUD_RATE : integer := 9600;           -- Baud rate (bits per second)
+    constant CLOCK_FREQ : integer := 50000000;      -- Clock frequency (50 MHz)
+
+    -- TX variables
+    signal tx_bit_count : integer range 0 to 10 := 0;  -- Counter for transmitting bits
+    signal tx_data_reg  : STD_LOGIC_VECTOR(9 downto 0);-- Shift register for TX data
+    signal tx_reg       : STD_LOGIC := '1';            -- Register for UART TX line
+    
+    -- RX variables
+    signal rx_bit_count : integer range 0 to 10 := 0;  -- Counter for receiving bits
+    signal rx_data_reg  : STD_LOGIC_VECTOR(7 downto 0);-- Shift register for RX data
+    signal rx_start_bit : STD_LOGIC := '0';            -- Start bit detected flag
+    signal rx_reg       : STD_LOGIC := '0';            -- Register for received data
+    signal rx_ready_reg : STD_LOGIC := '0';            -- Ready signal for RX
+
+begin
+
+    -- UART TX process
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            tx_bit_count <= 0;
+            tx_reg <= '1';                          -- Start bit
+        elsif rising_edge(clk) then
+            if tx_bit_count = 0 then
+                tx_ready <= '0';                    -- Indicate transmission in progress
+                tx_reg <= '0';                      -- Start bit
+                tx_data_reg <= '0' & tx_data & '1';-- Load data into shift register with start and stop bits
+                tx_bit_count <= 1;
+            elsif tx_bit_count < 10 then
+                tx_reg <= tx_data_reg(tx_bit_count);-- Output data bit
+                tx_bit_count <= tx_bit_count + 1;
+            elsif tx_bit_count = 10 then
+                tx_reg <= '1';                      -- Stop bit
+                tx_bit_count <= 0;
+                tx_ready <= '1';                    -- Indicate transmission complete
+            end if;
+        end if;
+    end process;
+
+    -- UART RX process
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            rx_bit_count <= 0;
+            rx_start_bit <= '0';
+            rx_data_reg <= (others => '0');
+            rx_ready_reg <= '0';
+        elsif rising_edge(clk) then
+            if rx_bit_count = 0 then
+                if rx = '0' then
+                    rx_start_bit <= '1';           -- Start bit detected
+                    rx_bit_count <= 1;
+                end if;
+            elsif rx_bit_count <= 8 then
+                rx_data_reg(rx_bit_count - 1) <= rx; -- Store received data bits
+                rx_bit_count <= rx_bit_count + 1;
+            elsif rx_bit_count = 9 then
+                if rx = '1' then
+                    -- Stop bit detected, data reception complete
+                    rx_ready_reg <= '1';         -- Indicate reception complete
+                end if;
+                rx_bit_count <= 0;
+            end if;
+        end if;
+    end process;
+
+    tx <= tx_reg;          -- Assign TX line
+    rx_data <= rx_data_reg;-- Output received data
+    rx_ready <= rx_ready_reg;-- Output ready signal for RX
+
+end Behavioral;
